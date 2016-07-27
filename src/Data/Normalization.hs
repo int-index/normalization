@@ -15,11 +15,12 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE GADTs #-}
 
-{-
+{- |
 
 Normalization toolkit. At the most basic level, normalization is assigning
 keys to values to minimize data redundancy. Say you have a tree of values:
 
+@
 banana
 ├── apple
 │   ├── cherry
@@ -32,9 +33,11 @@ banana
 │   ├── lemon
 │   └── tomato
 └── lemon
+@
 
 Note that there are duplicate objects. Now, it poses some problems:
-  * if you want to update an object, you have to update all its instantiations.
+
+  * if you want to update an object, you have to update all its instantiations;
   * if there are expensive operations on the objects, you have to perform
     them for each instantiation separately or maintain a HashMap (and thus
     perform a lot of 'hash' and '==' operations to identify objects).
@@ -42,9 +45,12 @@ Note that there are duplicate objects. Now, it poses some problems:
 To avoid these issues, we'd rather store the objects in a vector and store
 their indices in the tree instead:
 
+@
 0        1       2        3        4       5
 banana | apple | cherry | tomato | lemon | peach
+@
 
+@
 0
 ├── 1
 │   ├── 2
@@ -57,10 +63,12 @@ banana | apple | cherry | tomato | lemon | peach
 │   ├── 4
 │   └── 3
 └── 4
+@
 
 Although it solves the aforementioned problems, the naive implementation
 creates new ones:
-  * we need to pass the vector manually to fetch the values
+
+  * we need to pass the vector manually to fetch the values;
   * if there are multiple vectors it is easy to make a mistake and perform
     a lookup in the wrong one, creating hard-to-detect bugs that manifest
     themselves as out-of-bounds errors (if you're lucky).
@@ -113,19 +121,31 @@ import Data.Function
 import Unsafe.Coerce
 import Test.QuickCheck
 
--- | In a context where 'i ~~> a' is satisfied, the 'fetch' function can be
--- used to retrieve an 'a' by its 'Key i'. You can think of the 'i' type
--- variable as the table name, and 'Key i' points to an object in the table 'i'.
--- It makes sure that (1) all lookups happen in the correct tables and
--- (2) the tables are passed automatically.
+{- |
+
+In a context where @i '~~>' a@ is satisfied, the 'fetch' function can be used
+to retrieve an 'a' by its @'Key' i@. You can think of the @i@ type variable as
+the table name, and @'Key' i@ points to an object in the table @i@. It makes
+sure that:
+
+* all lookups happen in the correct tables;
+* the tables are passed automatically.
+
+-}
 class Reifies i (Vector a) => (~~>) i a | i -> a
 
 instance Reifies i (Vector a) => (~~>) i a
 
--- | An int key parametrized by its scope. The constructor is not exported
--- intentionally: to construct a key you have to perform normalization. This
--- gives us some desirable properties: (1) all keys point to existing objects,
--- (2) all keys point to distinct objects.
+{- |
+
+An integer key parametrized by its scope. The constructor is not exported
+intentionally: to construct a key you have to perform normalization. This gives
+us some desirable properties:
+
+* all keys point to existing objects;
+* all keys point to distinct objects.
+
+-}
 newtype Key i = Key Int
   deriving (Eq, Ord, Show, Hashable)
 
@@ -215,8 +235,8 @@ toUnsafeScope (Scope fk) = UnsafeScope (vecOf fk) (fmapCoerce fk)
     vecOf _ = reflect (Proxy :: Proxy i)
 
 -- | Normalize values in a container. E.g if you have a list of objects
--- '[obj0, obj1, obj2, obj1]', after normalization you will have a list of
--- indices '[0, 1, 2, 1]' and a vector '[obj0, obj1, obj2]'. Left-biased.
+-- @[obj0, obj1, obj2, obj1]@, after normalization you will have a list of
+-- indices @[0, 1, 2, 1]@ and a vector @[obj0, obj1, obj2]@. Left-biased.
 normalize :: (Traversable f, Ord a) => f a -> Scope f a
 normalize fa = fromUnsafeScope (UnsafeScope vec f')
   where
