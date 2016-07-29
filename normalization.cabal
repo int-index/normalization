@@ -23,7 +23,6 @@ library
                ,       mtl
                ,       containers
                ,       reflection >= 2
-               ,       lens >= 4.0
                ,       vector
                ,       binary
                ,       vector-binary-instances

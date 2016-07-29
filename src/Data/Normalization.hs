@@ -1,7 +1,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -108,12 +107,12 @@ import Data.Hashable
 import Data.Traversable
 import Data.Proxy
 import Data.List as List
+import Data.Foldable
 import Data.Reflection
 import Data.Vector as Vector
 import Data.Vector.Mutable as MVector
 import Data.Vector.Binary ()
 import Data.Map.Lazy as Map
-import Control.Lens (itraverse_)
 import GHC.Generics (Generic)
 import Data.Binary as Bin
 import Data.Coerce
@@ -156,7 +155,7 @@ data Scope f a where
 
 -- | The existential deconstructor.
 withScope
-  :: (forall (i :: k) . (i ~~> a) => f (Key i) -> r)
+  :: (forall i . (i ~~> a) => f (Key i) -> r)
   -> Scope f a
   -> r
 withScope cont (Scope fk) = cont fk
@@ -166,7 +165,7 @@ infix 8 `withScope`
 
 -- | Map a natural transformation over a scope.
 hoistScope
-  :: (forall (i :: k) . f (Key i) -> g (Key i))
+  :: (forall i . f (Key i) -> g (Key i))
   -> Scope f a
   -> Scope g a
 hoistScope nt (Scope fk) = Scope (nt fk)
@@ -258,7 +257,7 @@ normalize fa = fromUnsafeScope (UnsafeScope vec f')
 unsafeInvertMap :: Ord a => Map a Int -> Vector a
 unsafeInvertMap m = runST $ do
   vec <- MVector.unsafeNew (Map.size m)
-  itraverse_ (\a i -> MVector.unsafeWrite vec i a) m
+  for_ (Map.toList m) $ \(a, i) -> MVector.unsafeWrite vec i a
   Vector.unsafeFreeze vec
 
 -- | Inverse of 'normalize'. The objects remain shared in memory.
